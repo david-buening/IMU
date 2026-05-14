@@ -9,7 +9,7 @@ PORT = 5005
 TARGET_HZ = 10
 INTERVAL = 1.0 / TARGET_HZ  # 100ms
 
-os.makedirs("./data", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -22,7 +22,7 @@ conn, addr = server.accept()
 hand = conn.recv(1024).decode().strip()
 print(f"Verbunden! Uhr '{hand}' von {addr}")
 
-filename = f"./data/test_{hand}_{int(time.time())}.csv"
+filename = f"data/test_{hand}_{int(time.time())}.csv"
 f = open(filename, "w", newline="")
 writer = csv.writer(f)
 writer.writerow(["timestamp_ms", "GX", "GY", "GZ", "AX", "AY", "AZ", "sync"])

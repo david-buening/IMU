@@ -18,7 +18,7 @@ current_phase = None  # von Threads gelesen, vom Hauptthread gesetzt
 stop_event    = Event()
 record_start  = None  # Server-Zeitstempel beim Start
 
-os.makedirs("./data", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
 # ── Server starten ────────────────────────────────────
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,7 +43,7 @@ writers = {}
 conns   = {hand1: conn1, hand2: conn2}
 
 for hand in [hand1, hand2]:
-    path = f"./data/{DATASET_NAME}_{hand}.csv"
+    path = f"data/{DATASET_NAME}_{hand}.csv"
     f = open(path, "w", newline="")
     writers[hand] = csv.writer(f)
     writers[hand].writerow(COLUMNS)

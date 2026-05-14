@@ -15,7 +15,7 @@ server.listen(2)
 
 CSV_COLUMN_NAMES = ['timestamp_mills_ms', 'GX', 'GY', 'GZ', 'AX', 'AY', 'AZ', 'sync', 'timestamp_listener']
 
-os.makedirs("./data", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
 print("Server started, waiting for connections...")
 
@@ -28,8 +28,8 @@ conn2, addr2 = server.accept()
 hand1 = conn1.recv(1024).decode().strip()
 hand2 = conn2.recv(1024).decode().strip()
 
-file1 = open(f"./data/{user_id}_{hand1}.csv", "w", newline='')
-file2 = open(f"./data/{user_id}_{hand2}.csv", "w", newline='')
+file1 = open(f"data/{user_id}_{hand1}.csv", "w", newline='')
+file2 = open(f"data/{user_id}_{hand2}.csv", "w", newline='')
 
 writer1 = csv.writer(file1)
 writer2 = csv.writer(file2)
