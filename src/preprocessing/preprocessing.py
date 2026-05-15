@@ -46,6 +46,7 @@ def parse_metadata(csv_path: Path) -> dict:
         "box_size":         box_size,
         "sensor_hand":      sensor_hand,
         "surface":          surface,
+        "carrying_hand":    carrying_hand,
         "one_handed_carry": carrying_hand != "both",
     }
 
@@ -54,6 +55,8 @@ def load_all_data(data_dir: Path) -> pd.DataFrame:
     dfs, skipped = [], []
 
     for csv_path in sorted(data_dir.glob("**/*.csv")):
+        if csv_path.name == "preprocessed.csv":
+            continue
         df = pd.read_csv(csv_path)
         if df.empty:
             skipped.append(csv_path.name)
@@ -79,7 +82,7 @@ if __name__ == "__main__":
 
     print("\nRow counts per metadata group:")
     summary = (
-        df.groupby(["subject", "box_size", "sensor_hand", "surface", "one_handed_carry"])
+        df.groupby(["subject", "box_size", "sensor_hand", "surface", "carrying_hand", "one_handed_carry"])
         .size()
         .reset_index(name="n_rows")
     )

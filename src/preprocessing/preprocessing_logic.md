@@ -29,6 +29,7 @@ Each raw CSV has 9 columns recorded at ~100 Hz:
 | `box_size` | str | Object size: `big` or `small` |
 | `sensor_hand` | str | Wrist the sensor was worn on: `L` (left) or `R` (right) |
 | `surface` | str | Where the box was picked up/set down: `table` or `floor` |
+| `carrying_hand` | str | Which hand held the object: `left`, `right`, or `both` |
 | `one_handed_carry` | bool | `True` if carried with one hand only, `False` if both hands used |
 
 ## Metadata Parsing Rules
@@ -51,11 +52,11 @@ Detected from the filename:
 ### Carrying hand / one_handed_carry
 Detected from the filename via keyword matching (order matters to avoid partial matches):
 
-| Filename keyword | `one_handed_carry` |
-|---|---|
-| `both_hands`, `bothhands`, `amidextrous` | `False` |
-| `left_hand`, `lefthand` | `True` |
-| `right_hand`, `righthand` | `True` |
+| Filename keyword | `carrying_hand` | `one_handed_carry` |
+|---|---|---|
+| `both_hands`, `bothhands`, `amidextrous` | `both` | `False` |
+| `left_hand`, `lefthand` | `left` | `True` |
+| `right_hand`, `righthand` | `right` | `True` |
 
 ## Known Data Issues
 - **4 empty files** skipped automatically (header-only, no sensor data):
