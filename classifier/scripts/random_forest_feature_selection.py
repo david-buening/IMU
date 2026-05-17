@@ -120,9 +120,12 @@ def try_save_shap_importance(model: Pipeline, X_test: pd.DataFrame, numeric: lis
     explainer = shap.TreeExplainer(rf)
     shap_values = explainer.shap_values(transformed_test)
 
-    # For binary classifiers, SHAP usually returns one array per class.
+    # For binary classifiers, SHAP returns either a list of two arrays (older
+    # versions) or a single 3D array of shape (n_samples, n_features, n_classes).
     if isinstance(shap_values, list):
         class_values = shap_values[1]
+    elif shap_values.ndim == 3:
+        class_values = shap_values[:, :, 1]
     else:
         class_values = shap_values
 

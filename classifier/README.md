@@ -226,6 +226,25 @@ which python
 python -c "import pandas as pd; print(pd.__version__)"
 ```
 
+## Feature Exclusions
+
+The following columns are present in the feature CSV but are explicitly excluded from model inputs:
+
+| Column | Reason |
+|---|---|
+| `one_handed_carry` | Target label |
+| `experiment_id` | Row identifier |
+| `subject` | Person identity — excluded to avoid person-specific overfitting |
+| `time_reference`, `window_index_in_phase`, `window_start_s`, `window_end_s` | Window bookkeeping, not motion |
+| `phase` | Experiment metadata — not derivable from IMU signal alone |
+| `box_size` | Experiment metadata — not derivable from IMU signal alone |
+| `surface` | Experiment metadata — not derivable from IMU signal alone |
+| `L_n_samples`, `R_n_samples` | Number of samples per window; depends on Bluetooth timing and packet loss, not on motion |
+
+The remaining 118 numeric columns are the model inputs. They are derived purely from the raw sensor signals (AX, AY, AZ, GX, GY, GZ) and their magnitudes, jerk signals, and left-right asymmetry features.
+
+Note: the result tables below were computed before `phase`, `box_size`, `surface`, `L_n_samples`, and `R_n_samples` were removed. Those results are kept for reference but should be re-evaluated with the corrected feature set.
+
 ## Model Training
 
 The supervised learning target is:
@@ -283,14 +302,14 @@ The test split was balanced on experiment level:
 3 both-handed experiments
 ```
 
-Baseline model comparison on this split:
+Baseline model comparison on this split (sensor-only features):
 
 | Model | Accuracy | Macro F1 |
 |---|---:|---:|
 | Random Forest | 0.884 | 0.882 |
-| Logistic Regression | 0.860 | 0.860 |
-| SVM | 0.849 | 0.848 |
 | KNN | 0.837 | 0.837 |
+| SVM | 0.837 | 0.836 |
+| Logistic Regression | 0.826 | 0.825 |
 
 Random Forest performed best in this initial split.
 
@@ -298,28 +317,38 @@ Random Forest performed best in this initial split.
 
 Random Forest feature importance was used to rank features. The model was then retrained with only the top-ranked features.
 
-Initial 80/20 split results:
+Initial 80/20 split results (sensor-only features):
 
 | Feature set | Accuracy | Macro F1 |
 |---|---:|---:|
-| Top 10 RF features | 0.919 | 0.918 |
-| Top 20 RF features | 0.895 | 0.894 |
+| Top 20 RF features | 0.919 | 0.918 |
+| Top 10 RF features | 0.907 | 0.906 |
 | Top 40 RF features | 0.895 | 0.894 |
 | All features | 0.884 | 0.882 |
 
-Top 10 features from the initial split:
+Top 20 features from the initial split:
 
 ```text
 L_AX_mean
-L_AZ_mean
 AY_std_absdiff
-R_AZ_mean
+L_AZ_mean
 GY_std_absdiff
+R_AZ_mean
 L_AY_mean
 gyro_jerk_mag_mean_absdiff
 gyro_mag_mean_absdiff
 R_AX_mean
+gyro_jerk_mag_mean_ratio_L_over_R
+acc_mag_energy_ratio_L_over_R
+acc_mag_mean_ratio_L_over_R
+AY_std_ratio_L_over_R
 R_AY_mean
+gyro_mag_range_absdiff
+gyro_mag_std_absdiff
+acc_mag_std_absdiff
+R_acc_mag_mean
+gyro_mag_energy_absdiff
+GY_std_ratio_L_over_R
 ```
 
 Interpretation: the selected features include both absolute wrist movement features and left-right asymmetry features. The asymmetry-related features support the project assumption that one-handed carrying creates different movement patterns between the wrists.
@@ -343,19 +372,19 @@ results/feature_importance_shap_random_forest.csv
 results/shap_summary_random_forest.png
 ```
 
-Top SHAP features:
+Top SHAP features (sensor-only features):
 
 ```text
-L_AZ_mean
-L_AX_mean
-AY_std_absdiff
-GY_std_absdiff
 R_AZ_mean
-gyro_jerk_mag_mean_absdiff
 L_AY_mean
+gyro_jerk_mag_mean_absdiff
 gyro_mag_mean_absdiff
-R_AY_mean
 R_AX_mean
+gyro_jerk_mag_mean_ratio_L_over_R
+acc_mag_energy_ratio_L_over_R
+acc_mag_mean_ratio_L_over_R
+AY_std_ratio_L_over_R
+R_AY_mean
 ```
 
 The SHAP ranking is very similar to the Random-Forest-importance ranking. This strengthens the interpretation that the model relies on a combination of wrist orientation/movement features and left-right asymmetry features.
@@ -379,27 +408,27 @@ The implemented cross-validation:
 - approximately balances one-handed and both-handed experiments across folds
 - reports mean and standard deviation across 5 folds
 
-Baseline cross-validation results:
+Baseline cross-validation results (sensor-only features):
 
 | Model | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| Random Forest | 0.869 | 0.034 | 0.867 | 0.033 |
-| SVM | 0.861 | 0.034 | 0.859 | 0.033 |
-| KNN | 0.859 | 0.026 | 0.858 | 0.026 |
-| Logistic Regression | 0.836 | 0.037 | 0.835 | 0.036 |
+| Random Forest | 0.869 | 0.032 | 0.868 | 0.031 |
+| SVM | 0.855 | 0.025 | 0.853 | 0.025 |
+| KNN | 0.848 | 0.037 | 0.847 | 0.037 |
+| Logistic Regression | 0.835 | 0.043 | 0.834 | 0.042 |
 
-Random Forest remains the best model on average, although SVM and KNN are close.
+Random Forest remains the best model on average.
 
-Random Forest feature-selection cross-validation:
+Random Forest feature-selection cross-validation (sensor-only features):
 
 | Feature set | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| Top 10 RF features | 0.878 | 0.048 | 0.877 | 0.048 |
-| Top 20 RF features | 0.874 | 0.029 | 0.873 | 0.028 |
-| Top 40 RF features | 0.874 | 0.014 | 0.872 | 0.013 |
-| All features | 0.869 | 0.034 | 0.867 | 0.033 |
+| Top 40 RF features | 0.880 | 0.028 | 0.879 | 0.029 |
+| Top 20 RF features | 0.876 | 0.041 | 0.875 | 0.040 |
+| Top 10 RF features | 0.876 | 0.046 | 0.875 | 0.046 |
+| All features | 0.869 | 0.032 | 0.868 | 0.031 |
 
-In cross-validation, Top 10 features still perform best, but the improvement over all features is smaller than in the single 80/20 split. This suggests that feature selection helps, but the size of the effect should be interpreted carefully.
+In cross-validation, Top 40 features perform best. Top 10 and Top 20 are essentially equivalent. Feature selection helps, but the size of the effect should be interpreted carefully given the small dataset.
 
 ## Phase-Specific Classification
 
@@ -414,13 +443,13 @@ Setup:
 - Top 10 feature selection inside each training fold
 - grouped 5-fold cross-validation by `experiment_id`
 
-Results:
+Results (sensor-only features):
 
 | Phase | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
 | Laufen | 0.944 | 0.076 | 0.943 | 0.077 |
-| Absetzen | 0.855 | 0.047 | 0.854 | 0.047 |
-| Aufheben | 0.850 | 0.073 | 0.847 | 0.077 |
+| Aufheben | 0.872 | 0.131 | 0.869 | 0.136 |
+| Absetzen | 0.863 | 0.062 | 0.862 | 0.062 |
 
 Main finding:
 
@@ -451,12 +480,12 @@ Setup:
 - Top 10 feature selection inside each training fold
 - grouped 5-fold cross-validation by `experiment_id`
 
-Results:
+Results (sensor-only features):
 
 | Box size | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| big | 0.974 | 0.029 | 0.972 | 0.030 |
-| small | 0.741 | 0.084 | 0.726 | 0.095 |
+| big | 0.967 | 0.037 | 0.965 | 0.039 |
+| small | 0.771 | 0.071 | 0.763 | 0.076 |
 
 Main finding:
 
@@ -472,7 +501,7 @@ The current best-supported modeling choice is:
 
 ```text
 Classifier: Random Forest
-Feature set: Top 10 Random-Forest-importance features
+Feature set: Top 40 Random-Forest-importance features (best in CV); Top 20 best in single 80/20 split
 Evaluation: grouped cross-validation by experiment_id
 Best phase: Laufen
 Best box-size condition: big

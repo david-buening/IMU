@@ -33,11 +33,16 @@ DROP_COLS = [
     "window_index_in_phase",
     "window_start_s",
     "window_end_s",
+    # Experiment metadata — not available from sensor signals in the real world.
+    "phase",
+    "box_size",
+    "surface",
+    # Sample counts depend on Bluetooth timing and dropout, not on motion.
+    "L_n_samples",
+    "R_n_samples",
 ]
 
-# Keep these as categorical model inputs for the first baseline.
-# Later, we can also run sensor-only models by removing these.
-CATEGORICAL_FEATURES = ["phase", "box_size", "surface"]
+CATEGORICAL_FEATURES = []
 
 # Avoid using subject as an input feature for the baseline, because it can make
 # the model learn person-specific patterns instead of carrying behavior.
