@@ -1,0 +1,255 @@
+\documentclass[10pt,a4paper]{article}
+
+% ---------- packages ----------
+\usepackage[top=1.8cm,bottom=1.8cm,left=1.8cm,right=1.8cm]{geometry}
+\usepackage{multicol}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+% ---------- colours ----------
+\definecolor{tuwblue}{RGB}{0,102,153}
+\definecolor{lightgray}{RGB}{245,245,245}
+\definecolor{darkgray}{RGB}{80,80,80}
+
+% ---------- section formatting ----------
+\titleformat{\section}{\normalsize\bfseries\color{tuwblue}}{}{0em}{}[\vspace{-4pt}\hrule\vspace{4pt}]
+\titlespacing*{\section}{0pt}{6pt}{2pt}
+
+% ---------- list spacing ----------
+\setlist[itemize]{noitemsep, topsep=1pt, leftmargin=*}
+
+\pagestyle{empty}
+
+% ============================================================
+\begin{document}
+
+% ---------- header ----------
+\begin{center}
+  {\large\bfseries\color{tuwblue}
+    Can Wrist Motion Reveal How You Carry a Box?}\\[3pt]
+  {\small\color{darkgray}
+   Management Summary \quad|\quad TU Wien ASM2 \quad|\quad
+   Viktor Hoffmann \quad|\quad May 2026}
+\end{center}
+\vspace{2pt}
+\hrule height 1.2pt
+\vspace{6pt}
+
+% ---------- two-column body ----------
+\begin{multicols}{2}
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{The Question}
+
+When a person carries a box with one hand, their two wrists move differently:
+the active wrist is constrained by the load while the passive wrist swings freely.
+We asked whether this left-right asymmetry is strong enough that an
+\textbf{unsupervised clustering algorithm} --- given no labels --- would spontaneously
+group windows of sensor data by carrying condition.
+Two wrist-mounted IMUs (left and right) recorded three-axis gyroscope and
+accelerometer signals from two subjects across 2 box sizes, 2 surfaces, and
+3 carrying conditions (left hand, right hand, both hands) at $\approx$100\,Hz,
+yielding 47{,}413 raw samples.
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Step 1: Start Simple --- One Wrist at a Time}
+
+We began with a \textbf{single-sensor} analysis: extract 91 time-domain features
+per 1-second window from one wrist (mean, std, RMS, kurtosis, jerk magnitude,
+etc.\ across 10 signal channels), scale with RobustScaler, and cluster.
+By construction this approach cannot represent cross-wrist asymmetry.
+
+The clusters were clear and interpretable, but they captured the \textbf{wrong
+thing}: the dominant structure was \textit{motion intensity}.
+High-kurtosis, high-jerk windows (picking up, setting down) separated from
+low-intensity walking windows.
+All carrying-condition ARIs were $\leq$\,0.08.
+\textit{Wrist motion intensity varies by movement phase, not by which hand
+holds the box.}
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Step 2: Add the Second Wrist}
+
+Single-sensor analysis cannot test the lateralisation hypothesis.
+We built a \textbf{paired} feature matrix: one row combines both wrists
+simultaneously, adding 188 cross-wrist asymmetry features
+(absolute difference $|f_R - f_L|$, ratio $f_R / f_L$, and Pearson correlation
+per axis), giving \textbf{370 features} per window.
+
+Initial paired results looked suspiciously strong: $k$\,=\,2 silhouette\,=\,0.78
+pooled --- far above single-sensor.
+Yet all carrying-condition ARIs remained $\approx$\,0.
+Inspecting the scatter revealed the truth: a handful of extreme windows formed
+one cluster on their own, far removed from all other data.
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Step 3: The Artefact, and How We Fixed It}
+
+Examining which features separated the outlier cluster, we found extreme
+raw-sensor kurtosis values (up to 97; dataset 99th percentile: 15).
+These are \textbf{impact windows} --- moments when one wrist made accidental
+contact with a surface.
+Because they generate extreme asymmetry-feature values, they dominated the
+entire paired clustering.
+
+We removed windows where any raw L/R sensor kurtosis exceeded 30, while
+deliberately \textit{excluding} the new jerk-channel kurtosis features
+(Ajerk, Gjerk are impulsive by construction; their kurtosis is naturally
+high during normal motion and would falsely flag the majority of windows).
+This targeted filter removed exactly \textbf{14 windows (2.3\,\%)} while
+preserving 97.7\,\% of the data.
+
+% [INSERT FIGURE: data/features/plots/Viktor/pass\_b/scatter\_one\_handed\_carry\_pass\_b.png
+%  Caption: Ground-truth one\_handed\_carry label overlay in classifier feature space
+%  (Viktor, Pass B). A spatial gradient is visible: both-handed windows concentrate
+%  upper-left, one-handed windows spread lower-right --- motivating the clustering.]
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Step 4: Rethinking the Pipeline --- Removing PCA}
+
+With clean data, the previous pipeline (RobustScaler\,$\to$\,PCA\,$\to$\,cluster)
+still failed: silhouette remained $\approx$\,0.55--0.83 but external ARI stayed near
+zero.
+Two structural problems were identified:
+
+\begin{itemize}
+  \item \textbf{PCA maximises variance, not class separability.}  The dominant
+        variance in 370 features comes from motion intensity (the same
+        phase-correlated structure found in single-sensor analysis), not from
+        the carrying-condition signal.  PCA projects the discriminative direction
+        into low-variance components and discards it.
+  \item \textbf{Feature redesign.}  The old asymmetry set included
+        \texttt{symm\_idx} (numerically unstable near zero) and
+        \texttt{log\_ratio} (loses sign).  These were replaced by a linear
+        \texttt{ratio}\,$= f_R / (f_L + \varepsilon)$, and a dedicated gyro jerk
+        channel (Gjerk) was added alongside accel jerk (Ajerk).
+\end{itemize}
+
+The new pipeline \textbf{removes PCA from clustering entirely}.
+RobustScaler + $\pm$50 clip is applied, then algorithms run in the full
+scaled feature space.
+A 2-component PCA is computed \textit{only} for scatter plot visualisation
+(not used for clustering).
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Step 5: Two-Pass Evaluation}
+
+We ran two passes per subject, each stratified within-subject to eliminate
+between-subject confounding:
+
+\textbf{Pass A --- full 370-feature space.}
+K-Means, Ward, and GMM (diagonal covariance, $n$\,=\,2--5).
+DBSCAN skipped: $\varepsilon$ is not interpretable in $\sim$370 dimensions.
+Result: silhouette\,=\,0.81--0.83 (very high internally consistent structure),
+but \textit{all} carrying-condition ARIs\,$\approx$\,0.
+The full feature space clusters strongly --- but by motion dynamics and
+session-level variation, not by carrying condition.
+
+\textbf{Pass B --- classifier top-10 features.}
+A colleague's supervised Random Forest (F1\,$\approx$\,0.88--0.92) identified the
+10 most discriminative features: mean accelerations per wrist
+(\texttt{L/R\_AX/AY/AZ\_mean}) and four cross-wrist asymmetry features.
+We clustered \textit{only} in that 10-dimensional space.
+DBSCAN is included here (10 dims: $\varepsilon$ is interpretable).
+Results:
+
+\begin{itemize}
+  \item \textbf{Viktor, $k$\,=\,2:}
+        ARI(\texttt{one\_handed\_carry})\,=\,\textbf{0.40}.
+        Cluster\,0 (129 windows): \textbf{92.2\,\% both-handed}.
+        Cluster\,1 (196 windows): \textbf{75.0\,\% one-handed}.
+        The binary carrying split is clearly recovered without labels.
+  \item \textbf{Viktor, GMM $n$\,=\,5:}
+        ARI(\texttt{carrying\_hand})\,=\,\textbf{0.52}.
+        Three of five clusters are perfectly pure:
+        107 windows at \textbf{100\,\% both-handed},
+        58 windows at \textbf{100\,\% right-handed},
+        45 windows at \textbf{100\,\% left-handed}.
+        The three carrying conditions emerge as natural density modes.
+  \item \textbf{David, $k$\,=\,3:}
+        ARI(\texttt{one\_handed\_carry})\,=\,\textbf{0.35}.
+        Weaker but real; David's signal requires $k \geq 3$ because his
+        wrist kinematics differ less sharply between left- and right-hand trials.
+\end{itemize}
+
+DBSCAN collapsed to 1 cluster for both subjects (with 8--16\,\% noise), confirming
+no compact density-gap between conditions --- only distributional differences that
+K-Means and GMM exploit through centroid geometry.
+
+% [INSERT FIGURE: data/features/plots/Viktor/pass\_b/scatter\_cluster\_kmeans\_k2\_pass\_b.png
+%  Caption: Viktor, Pass B, K-Means $k$\,=\,2 in 2D PCA view of the 10-feature space.
+%  Blue (cluster 0) concentrates upper-left = both-handed; orange (cluster 1) spreads
+%  right and lower = one-handed. ARI = 0.40.]
+
+% [INSERT FIGURE: data/features/plots/Viktor/pass\_b/scatter\_cluster\_gmm\_n5\_pass\_b.png
+%  Caption: Viktor, Pass B, GMM $n$\,=\,5. Blue = 100\,\% both-handed, orange =
+%  100\,\% right-handed, purple = 100\,\% left-handed. Three carrying conditions
+%  emerge as natural Gaussian density modes. CH-ARI = 0.52.]
+
+% [INSERT FIGURE: data/features/plots/David/pass\_b/scatter\_cluster\_kmeans\_k2\_pass\_b.png
+%  Caption: David, Pass B, K-Means $k$\,=\,2. The geometric split (left vs.\ right)
+%  is visible, but both clusters are majority one-handed --- David requires $k \geq 3$
+%  for condition-aligned structure (OHC-ARI = 0.35 at $k$\,=\,3).]
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\section{Conclusions}
+
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\columnwidth}{@{}lX@{}}
+\toprule
+\textbf{Hypothesis} & \textbf{Verdict} \\
+\midrule
+H1 --- one-sided vs.\ two-handed separable &
+  \textbf{Supported (Viktor).}
+  K-Means $k$\,=\,2 ARI\,=\,0.40; cluster purities 92\,\% / 75\,\%.
+  Weaker for David (ARI\,=\,0.35 at $k$\,=\,3). \\[3pt]
+H2 --- carrying hand (L/R/both) separable &
+  \textbf{Strongly supported (Viktor).}
+  GMM $n$\,=\,5 recovers all three conditions with CH-ARI\,=\,0.52;
+  three clusters at 100\,\% purity. \\[3pt]
+H3 --- motion phases distinguishable &
+  Weakly supported (max phase ARI\,$\leq$\,0.16).
+  Phase correlates with intensity, not carrying condition. \\
+\bottomrule
+\end{tabularx}
+
+\vspace{4pt}
+
+The central lessons are methodological.
+\textbf{First, PCA is the wrong dimensionality reduction for this task}: it
+finds directions of maximum variance (motion intensity), not class separability,
+discarding the carrying-condition signal in the process.
+\textbf{Second, feature selection matters more than feature count}: 10 features
+from a supervised classifier outperform 370 features fed through PCA by a wide
+margin.
+\textbf{Third, filter design requires domain knowledge}: the kurtosis filter must
+exclude jerk channels (impulsive by construction) or it over-removes 55\,\% of
+the data, fatally weakening every subsequent result.
+
+Two actionable conclusions emerge: (1) mean wrist accelerations and four
+cross-wrist asymmetry features are sufficient to cluster carrying conditions
+without labels; (2) a supervised feature-selection step followed by unsupervised
+clustering is a viable pipeline for future studies with $n \geq 10$ subjects,
+where generalisation can be properly evaluated.
+
+\end{multicols}
+
+\vspace{4pt}
+\hrule
+\vspace{3pt}
+{\footnotesize\color{darkgray}
+Plots: \texttt{data/features/plots/\{subject\}/\{pass\}/}.\quad
+Full metrics: \texttt{data/features/metrics\_summary.csv}.\quad
+Documentation: \texttt{clustering.md}.}
+
+\end{document}

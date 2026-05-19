@@ -6,16 +6,28 @@ where the 6 columns correspond to [GX, GY, GZ, AX, AY, AZ].
 
 Feature set
 -----------
-For each of the 6 raw axes + derived Amag (accel magnitude) + Gmag (gyro
-magnitude):
+For each of the 10 channels below:
   mean, std, rms, range, iqr, skewness, kurtosis,
-  zero_crossing_rate, energy, mean_abs_dev
+  zero_crossing_rate, mean_abs_dev
+
+Channels
+--------
+  GX GY GZ AX AY AZ — raw sensor axes
+  Amag  — L2 norm of accel  sqrt(AX² + AY² + AZ²)
+  Gmag  — L2 norm of gyro   sqrt(GX² + GY² + GZ²)
+  Ajerk — vector accel jerk magnitude: sqrt(sum(diff(accel)², axis=1))
+  Gjerk — vector gyro  jerk magnitude: sqrt(sum(diff(gyro)², axis=1))
 
 Plus:
-  signal_magnitude_area (SMA) — accel only (one scalar per window)
-  jerk_std, jerk_rms           — from diff(Amag)/dt
+  SMA — signal magnitude area, accel only (one scalar per window)
 
-Total: 11 features × 8 channels + SMA + 2 Jerk ≈ 91 features per window.
+Total: 9 stats × 10 channels + SMA = 91 features per window.
+
+Notes
+-----
+- energy (= rms²) removed — redundant with rms.
+- Ajerk/Gjerk are NOT scaled by fs (matches classifier jerk convention).
+- Ajerk replaces the old scalar jerk_std / jerk_rms features.
 """
 
 from __future__ import annotations
@@ -36,19 +48,19 @@ FS = 100.0   # nominal sampling frequency
 # ---------------------------------------------------------------------------
 
 def _mean(x: np.ndarray) -> float:
-    return float(np.mean(x))
+    return float(np.mean(x)) if len(x) > 0 else 0.0
 
 def _std(x: np.ndarray) -> float:
     return float(np.std(x, ddof=1)) if len(x) > 1 else 0.0
 
 def _rms(x: np.ndarray) -> float:
-    return float(np.sqrt(np.mean(x ** 2)))
+    return float(np.sqrt(np.mean(x ** 2))) if len(x) > 0 else 0.0
 
 def _range(x: np.ndarray) -> float:
-    return float(np.max(x) - np.min(x))
+    return float(np.max(x) - np.min(x)) if len(x) > 0 else 0.0
 
 def _iqr(x: np.ndarray) -> float:
-    return float(np.percentile(x, 75) - np.percentile(x, 25))
+    return float(np.percentile(x, 75) - np.percentile(x, 25)) if len(x) > 0 else 0.0
 
 def _skewness(x: np.ndarray) -> float:
     # Guard: scipy raises RuntimeWarning and returns NaN when std ≈ 0
@@ -65,18 +77,17 @@ def _kurtosis(x: np.ndarray) -> float:
     return val if np.isfinite(val) else 0.0
 
 def _zero_crossing_rate(x: np.ndarray) -> float:
+    if len(x) < 2:
+        return 0.0
     signs = np.sign(x - np.mean(x))   # centre before counting crossings
     crossings = np.sum(np.diff(signs) != 0)
-    return float(crossings / max(len(x) - 1, 1))
-
-def _energy(x: np.ndarray) -> float:
-    return float(np.mean(x ** 2))
+    return float(crossings / (len(x) - 1))
 
 def _mean_abs_dev(x: np.ndarray) -> float:
-    return float(np.mean(np.abs(x - np.mean(x))))
+    return float(np.mean(np.abs(x - np.mean(x)))) if len(x) > 0 else 0.0
 
 
-# Ordered list of (name, function)
+# Ordered list of (name, function) — 9 stats per channel
 _STAT_FUNCS = [
     ("mean",               _mean),
     ("std",                _std),
@@ -86,7 +97,6 @@ _STAT_FUNCS = [
     ("skewness",           _skewness),
     ("kurtosis",           _kurtosis),
     ("zero_crossing_rate", _zero_crossing_rate),
-    ("energy",             _energy),
     ("mean_abs_dev",       _mean_abs_dev),
 ]
 
@@ -109,11 +119,11 @@ def compute_features(data: np.ndarray, fs: float = FS) -> dict[str, float]:
     data : np.ndarray, shape (n_samples, 6)
         Columns: [GX, GY, GZ, AX, AY, AZ]
     fs   : float
-        Sampling frequency in Hz (used for Jerk scaling).
+        Sampling frequency in Hz (kept for API compatibility; not used).
 
     Returns
     -------
-    dict mapping feature_name → float value
+    dict mapping feature_name → float value  (91 entries)
     """
     feats: dict[str, float] = {}
 
@@ -135,13 +145,17 @@ def compute_features(data: np.ndarray, fs: float = FS) -> dict[str, float]:
     # --- signal magnitude area (accel only) ---------------------------------
     feats["SMA"] = float(np.mean(np.sum(np.abs(accel), axis=1)))
 
-    # --- jerk (derivative of Amag) ------------------------------------------
-    if len(Amag) > 1:
-        jerk = np.diff(Amag) * fs   # units: g/s
-        feats["jerk_std"] = _std(jerk)
-        feats["jerk_rms"] = _rms(jerk)
+    # --- jerk channels (vector jerk magnitude, not scaled by fs) ------------
+    # Ajerk: frame-to-frame L2 norm of accel difference
+    # Gjerk: frame-to-frame L2 norm of gyro difference
+    if len(accel) > 1:
+        Ajerk = np.sqrt(np.sum(np.diff(accel, axis=0) ** 2, axis=1))
+        Gjerk = np.sqrt(np.sum(np.diff(gyro,  axis=0) ** 2, axis=1))
     else:
-        feats["jerk_std"] = 0.0
-        feats["jerk_rms"] = 0.0
+        Ajerk = np.array([0.0])
+        Gjerk = np.array([0.0])
+
+    feats.update(_channel_features(Ajerk, "Ajerk"))
+    feats.update(_channel_features(Gjerk, "Gjerk"))
 
     return feats

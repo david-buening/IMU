@@ -3,8 +3,12 @@
 __pycache__/
 *.pyc
 
-# Data
+# Generated data (reproducible from raw CSVs + scripts)
 data/preprocessed.csv
+data/features/
+
+# Generated classifier results (reproducible from scripts)
+classifier/results/*.csv
 
 # IDE
 .idea/

@@ -264,6 +264,47 @@ def centroid_heatmap(
 
 
 # ---------------------------------------------------------------------------
+# Label-purity table
+# ---------------------------------------------------------------------------
+
+def label_purity_table(
+    labels_pred: np.ndarray,
+    meta_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    For each predicted cluster, show the dominant true label and its purity (%)
+    for one_handed_carry, carrying_hand, and phase.
+
+    Parameters
+    ----------
+    labels_pred : predicted cluster assignments (noise -1 excluded)
+    meta_df     : full metadata DataFrame (same row order as labels_pred)
+
+    Returns
+    -------
+    pd.DataFrame with columns: cluster, n, <label>_dom, <label>_pct
+    """
+    mask = labels_pred != -1
+    lp   = labels_pred[mask]
+    rows = []
+
+    for cluster in sorted(set(lp)):
+        row: dict = {"cluster": int(cluster), "n": int((lp == cluster).sum())}
+        for lbl in ["one_handed_carry", "carrying_hand", "phase"]:
+            if lbl not in meta_df.columns:
+                continue
+            lt = np.asarray(meta_df[lbl].astype(str))[mask]
+            cl = lt[lp == cluster]
+            vals, counts = np.unique(cl, return_counts=True)
+            dom_idx = counts.argmax()
+            row[f"{lbl}_dom"] = vals[dom_idx]
+            row[f"{lbl}_pct"] = round(100.0 * counts[dom_idx] / counts.sum(), 1)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
 # Summary table
 # ---------------------------------------------------------------------------
 

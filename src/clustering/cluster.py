@@ -200,8 +200,9 @@ def gmm_bic_selection(
     """
     results = {}
     for n in range(n_min, n_max + 1):
+        # covariance_type="diag": full covariance is ill-conditioned in high dims
         gmm = GaussianMixture(
-            n_components=n, covariance_type="full",
+            n_components=n, covariance_type="diag",
             max_iter=200, random_state=random_state
         )
         gmm.fit(X)
@@ -249,8 +250,9 @@ def run_gmm(
     random_state: int = 42,
 ) -> np.ndarray:
     """Fit GMM with *n_components* and return hard-assigned labels."""
+    # covariance_type="diag": full covariance is ill-conditioned in high dims
     gmm = GaussianMixture(
-        n_components=n_components, covariance_type="full",
+        n_components=n_components, covariance_type="diag",
         max_iter=200, random_state=random_state
     )
     gmm.fit(X)
