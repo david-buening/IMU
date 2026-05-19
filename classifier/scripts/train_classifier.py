@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder, RobustScaler
 from sklearn.svm import SVC
 
 
@@ -133,7 +133,7 @@ def make_xy(train_df: pd.DataFrame, test_df: pd.DataFrame):
 def make_preprocessor(numeric: list[str], categorical: list[str], scale_numeric: bool) -> ColumnTransformer:
     numeric_steps = [("imputer", SimpleImputer(strategy="median"))]
     if scale_numeric:
-        numeric_steps.append(("scaler", StandardScaler()))
+        numeric_steps.append(("scaler", RobustScaler()))
 
     numeric_pipeline = Pipeline(numeric_steps)
     categorical_pipeline = Pipeline(

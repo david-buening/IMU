@@ -22,7 +22,7 @@ Assumes experiment setup, motivation, and study design are covered in earlier sl
    Raw CSV files → merged, phase-labelled dataset
 
 2. Feature Extraction
-   Time windows (1 s, 50 % overlap) → 118 numeric features per window
+   Time windows (1 s, 50 % overlap) → 116 numeric features per window
 
 3. Model Selection
    4 classifiers compared on grouped 80/20 split
@@ -48,7 +48,7 @@ Cross-wrist asymmetry features:
 - Absolute differences L − R
 - Ratios L / R
 
-**Total: 118 sensor-derived features per window.**
+**Total: 116 sensor-derived features per window.**
 
 ---
 
@@ -59,9 +59,9 @@ Grouped 5-fold cross-validation, all 4 classifiers:
 | Model | Macro F1 (mean) | Macro F1 (std) |
 |---|---:|---:|
 | **Random Forest** | **0.868** | **0.031** |
-| SVM | 0.853 | 0.025 |
-| KNN | 0.847 | 0.037 |
-| Logistic Regression | 0.834 | 0.042 |
+| SVM | 0.849 | 0.042 |
+| Logistic Regression | 0.838 | 0.046 |
+| KNN | 0.824 | 0.029 |
 
 → **Random Forest selected** for all further analyses.
 
@@ -121,16 +121,16 @@ one-handed and two-handed carrying, making the asymmetry more detectable.
 Top features ranked by mean absolute SHAP value:
 
 ```
+L_AZ_mean                        ← vertical acceleration, left wrist
+L_AX_mean                        ← forward/back acceleration, left wrist
+AY_std_absdiff                   ← lateral acceleration variability asymmetry
+GY_std_absdiff                   ← gyro Y variability asymmetry
 R_AZ_mean                        ← vertical acceleration, right wrist
+gyro_mag_mean_absdiff            ← rotation magnitude asymmetry
 L_AY_mean                        ← lateral acceleration, left wrist
 gyro_jerk_mag_mean_absdiff       ← rotation jerk asymmetry
-gyro_mag_mean_absdiff            ← rotation magnitude asymmetry
 R_AX_mean                        ← forward/back acceleration, right wrist
-gyro_jerk_mag_mean_ratio_L_over_R
-acc_mag_energy_ratio_L_over_R
-acc_mag_mean_ratio_L_over_R
-AY_std_ratio_L_over_R
-R_AY_mean
+R_AY_mean                        ← lateral acceleration, right wrist
 ```
 
 Pattern: the model relies on **absolute wrist orientation/movement** and

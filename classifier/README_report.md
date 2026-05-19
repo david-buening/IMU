@@ -88,7 +88,7 @@ Additionally, cross-wrist asymmetry features are computed:
 - Ratio: L / R for the same statistics
 - Per-axis standard deviation differences and ratios
 
-**Total: 118 sensor-derived features per window.**
+**Total: 116 sensor-derived features per window.**
 
 The following columns present in the feature CSV are explicitly excluded from
 model inputs, as they represent experimental metadata or bookkeeping rather than
@@ -115,7 +115,7 @@ Four classifiers are evaluated:
 - Random Forest (300 trees, `class_weight="balanced"`)
 
 All numeric features are median-imputed. Logistic Regression, KNN, and SVM also
-apply standard scaling. Random Forest does not require scaling.
+apply robust scaling (RobustScaler, median/IQR). Random Forest does not require scaling.
 
 ### 4.2 Evaluation Strategy
 
@@ -150,14 +150,14 @@ avoid information leakage.
 
 ### 5.1 Model Comparison
 
-Grouped 5-fold cross-validation, all features (118 numeric):
+Grouped 5-fold cross-validation, all features (116 numeric):
 
 | Model | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
 | **Random Forest** | **0.869** | **0.032** | **0.868** | **0.031** |
-| SVM | 0.855 | 0.025 | 0.853 | 0.025 |
-| KNN | 0.848 | 0.037 | 0.847 | 0.037 |
-| Logistic Regression | 0.835 | 0.043 | 0.834 | 0.042 |
+| SVM | 0.850 | 0.042 | 0.849 | 0.042 |
+| Logistic Regression | 0.840 | 0.046 | 0.838 | 0.046 |
+| KNN | 0.825 | 0.031 | 0.824 | 0.029 |
 
 Random Forest achieves the highest mean Macro F1 and the second-lowest standard
 deviation, indicating both the best average performance and reliable
@@ -172,13 +172,13 @@ Random Forest with varying feature set sizes, grouped 5-fold CV:
 | Top 40 features | 0.880 | 0.028 | 0.879 | 0.029 |
 | Top 20 features | 0.876 | 0.041 | 0.875 | 0.040 |
 | Top 10 features | 0.876 | 0.046 | 0.875 | 0.046 |
-| All 118 features | 0.869 | 0.032 | 0.868 | 0.031 |
+| All 116 features | 0.869 | 0.032 | 0.868 | 0.031 |
 
 Feature selection provides a modest but consistent improvement. Top 10 through
 Top 40 perform similarly, suggesting the most discriminative information is
 concentrated in a small subset of features. The Top 40 set minimises variance.
 
-On the single 80/20 split, Top 20 features yield the highest single-split score
+On the single 80/20 split, Top 10 features yield the highest single-split score
 (Macro F1 0.918), though single-split results are more sensitive to the
 particular experiments selected for testing.
 
@@ -236,20 +236,20 @@ carrying may produce more similar wrist trajectories.
 
 ### 5.6 Feature Importance and SHAP Analysis
 
-Top features by Random Forest importance (80/20 split):
+Top features by CV-averaged Random Forest importance:
 
 ```
-L_AX_mean, AY_std_absdiff, L_AZ_mean, GY_std_absdiff, R_AZ_mean,
-L_AY_mean, gyro_jerk_mag_mean_absdiff, gyro_mag_mean_absdiff, R_AX_mean,
-gyro_jerk_mag_mean_ratio_L_over_R, acc_mag_energy_ratio_L_over_R, ...
+L_AZ_mean, AY_std_absdiff, L_AX_mean, GY_std_absdiff, gyro_jerk_mag_mean_absdiff,
+L_AY_mean, R_AX_mean, R_AZ_mean, R_AY_mean, gyro_mag_mean_absdiff,
+gyro_jerk_mag_mean_ratio_L_over_R, ...
 ```
 
 Top features by mean absolute SHAP value:
 
 ```
-R_AZ_mean, L_AY_mean, gyro_jerk_mag_mean_absdiff, gyro_mag_mean_absdiff,
-R_AX_mean, gyro_jerk_mag_mean_ratio_L_over_R, acc_mag_energy_ratio_L_over_R,
-acc_mag_mean_ratio_L_over_R, AY_std_ratio_L_over_R, R_AY_mean
+L_AZ_mean, L_AX_mean, AY_std_absdiff, GY_std_absdiff, R_AZ_mean,
+gyro_mag_mean_absdiff, L_AY_mean, gyro_jerk_mag_mean_absdiff,
+R_AX_mean, R_AY_mean
 ```
 
 Both rankings are highly consistent. Two feature types dominate:

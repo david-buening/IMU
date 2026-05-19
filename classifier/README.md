@@ -241,9 +241,7 @@ The following columns are present in the feature CSV but are explicitly excluded
 | `surface` | Experiment metadata — not derivable from IMU signal alone |
 | `L_n_samples`, `R_n_samples` | Number of samples per window; depends on Bluetooth timing and packet loss, not on motion |
 
-The remaining 118 numeric columns are the model inputs. They are derived purely from the raw sensor signals (AX, AY, AZ, GX, GY, GZ) and their magnitudes, jerk signals, and left-right asymmetry features.
-
-Note: the result tables below were computed before `phase`, `box_size`, `surface`, `L_n_samples`, and `R_n_samples` were removed. Those results are kept for reference but should be re-evaluated with the corrected feature set.
+The remaining 116 numeric columns are the model inputs. They are derived purely from the raw sensor signals (AX, AY, AZ, GX, GY, GZ) and their magnitudes, jerk signals, and left-right asymmetry features.
 
 ## Model Training
 
@@ -307,9 +305,9 @@ Baseline model comparison on this split (sensor-only features):
 | Model | Accuracy | Macro F1 |
 |---|---:|---:|
 | Random Forest | 0.884 | 0.882 |
-| KNN | 0.837 | 0.837 |
-| SVM | 0.837 | 0.836 |
-| Logistic Regression | 0.826 | 0.825 |
+| SVM | 0.826 | 0.825 |
+| KNN | 0.814 | 0.814 |
+| Logistic Regression | 0.802 | 0.802 |
 
 Random Forest performed best in this initial split.
 
@@ -317,38 +315,38 @@ Random Forest performed best in this initial split.
 
 Random Forest feature importance was used to rank features. The model was then retrained with only the top-ranked features.
 
-Initial 80/20 split results (sensor-only features):
+Initial 80/20 split results (sensor-only features, feature ranking from CV-averaged importance):
 
 | Feature set | Accuracy | Macro F1 |
 |---|---:|---:|
-| Top 20 RF features | 0.919 | 0.918 |
-| Top 10 RF features | 0.907 | 0.906 |
+| Top 10 RF features | 0.919 | 0.918 |
+| Top 20 RF features | 0.907 | 0.906 |
 | Top 40 RF features | 0.895 | 0.894 |
 | All features | 0.884 | 0.882 |
 
-Top 20 features from the initial split:
+Top 20 features by CV-averaged RF importance:
 
 ```text
-L_AX_mean
-AY_std_absdiff
 L_AZ_mean
+AY_std_absdiff
+L_AX_mean
 GY_std_absdiff
-R_AZ_mean
-L_AY_mean
 gyro_jerk_mag_mean_absdiff
-gyro_mag_mean_absdiff
+L_AY_mean
 R_AX_mean
+R_AZ_mean
+R_AY_mean
+gyro_mag_mean_absdiff
 gyro_jerk_mag_mean_ratio_L_over_R
+AY_std_ratio_L_over_R
+gyro_mag_std_absdiff
 acc_mag_energy_ratio_L_over_R
 acc_mag_mean_ratio_L_over_R
-AY_std_ratio_L_over_R
-R_AY_mean
-gyro_mag_range_absdiff
-gyro_mag_std_absdiff
 acc_mag_std_absdiff
-R_acc_mag_mean
 gyro_mag_energy_absdiff
+gyro_mag_range_absdiff
 GY_std_ratio_L_over_R
+gyro_jerk_mag_energy_absdiff
 ```
 
 Interpretation: the selected features include both absolute wrist movement features and left-right asymmetry features. The asymmetry-related features support the project assumption that one-handed carrying creates different movement patterns between the wrists.
@@ -375,15 +373,15 @@ results/shap_summary_random_forest.png
 Top SHAP features (sensor-only features):
 
 ```text
+L_AZ_mean
+L_AX_mean
+AY_std_absdiff
+GY_std_absdiff
 R_AZ_mean
+gyro_mag_mean_absdiff
 L_AY_mean
 gyro_jerk_mag_mean_absdiff
-gyro_mag_mean_absdiff
 R_AX_mean
-gyro_jerk_mag_mean_ratio_L_over_R
-acc_mag_energy_ratio_L_over_R
-acc_mag_mean_ratio_L_over_R
-AY_std_ratio_L_over_R
 R_AY_mean
 ```
 
@@ -413,9 +411,9 @@ Baseline cross-validation results (sensor-only features):
 | Model | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
 | Random Forest | 0.869 | 0.032 | 0.868 | 0.031 |
-| SVM | 0.855 | 0.025 | 0.853 | 0.025 |
-| KNN | 0.848 | 0.037 | 0.847 | 0.037 |
-| Logistic Regression | 0.835 | 0.043 | 0.834 | 0.042 |
+| SVM | 0.850 | 0.042 | 0.849 | 0.042 |
+| Logistic Regression | 0.840 | 0.046 | 0.838 | 0.046 |
+| KNN | 0.825 | 0.031 | 0.824 | 0.029 |
 
 Random Forest remains the best model on average.
 
@@ -501,7 +499,7 @@ The current best-supported modeling choice is:
 
 ```text
 Classifier: Random Forest
-Feature set: Top 40 Random-Forest-importance features (best in CV); Top 20 best in single 80/20 split
+Feature set: Top 40 Random-Forest-importance features (best in CV); Top 10 best in single 80/20 split
 Evaluation: grouped cross-validation by experiment_id
 Best phase: Laufen
 Best box-size condition: big

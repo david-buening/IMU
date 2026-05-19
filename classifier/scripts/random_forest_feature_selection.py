@@ -6,6 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.pipeline import Pipeline
 
+from cross_validate_models import make_stratified_group_folds
 from train_classifier import (
     CATEGORICAL_FEATURES,
     FEATURE_CSV,
@@ -58,6 +59,45 @@ def transformed_to_original_feature(transformed_name: str, numeric: list[str], c
             return cat_col
 
     return transformed_name
+
+
+def _importance_df(model: Pipeline, numeric: list[str], categorical: list[str]) -> pd.DataFrame:
+    """Compute feature importance from a trained RF pipeline without saving."""
+    transformed_names = get_transformed_feature_names(model, numeric, categorical)
+    importances = model.named_steps["model"].feature_importances_
+
+    transformed_importance = pd.DataFrame(
+        {
+            "transformed_feature": transformed_names,
+            "original_feature": [
+                transformed_to_original_feature(name, numeric, categorical) for name in transformed_names
+            ],
+            "importance": importances,
+        }
+    )
+    return (
+        transformed_importance.groupby("original_feature", as_index=False)["importance"]
+        .sum()
+        .sort_values("importance", ascending=False)
+    )
+
+
+def compute_cv_averaged_importance(
+    df: pd.DataFrame, numeric: list[str], categorical: list[str]
+) -> pd.DataFrame:
+    """Average RF feature importances across CV folds for a stable ranking."""
+    all_importances = []
+    for train_idx, _ in make_stratified_group_folds(df):
+        train_fold = df.iloc[train_idx]
+        X_fold = train_fold[numeric + categorical]
+        y_fold = train_fold[LABEL_COL].astype(bool)
+        rf = train_random_forest(X_fold, y_fold, numeric, categorical)
+        imp = _importance_df(rf, numeric, categorical)
+        all_importances.append(imp.set_index("original_feature")["importance"])
+
+    averaged = pd.concat(all_importances, axis=1).mean(axis=1).reset_index()
+    averaged.columns = ["original_feature", "importance"]
+    return averaged.sort_values("importance", ascending=False)
 
 
 def train_random_forest(X_train, y_train, numeric: list[str], categorical: list[str]) -> Pipeline:
@@ -190,8 +230,15 @@ def main() -> None:
     train_df, test_df = make_train_test_split(df)
     X_train, X_test, y_train, y_test, numeric, categorical = make_xy(train_df, test_df)
 
+    # Average feature importances across CV folds for a stable ranking.
+    importance = compute_cv_averaged_importance(df, numeric, categorical)
+    importance.to_csv(IMPORTANCE_CSV, index=False)
+    print(f"\nSaved averaged CV feature importance to {IMPORTANCE_CSV}")
+    print("Top 20 features:")
+    print(importance.head(20).to_string(index=False))
+
+    # Train one RF on the full training split for SHAP analysis.
     full_rf = train_random_forest(X_train, y_train, numeric, categorical)
-    importance = save_random_forest_importance(full_rf, numeric, categorical)
     try_save_shap_importance(full_rf, X_test, numeric, categorical)
 
     all_features = X_train.columns.tolist()
