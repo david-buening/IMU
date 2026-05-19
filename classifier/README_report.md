@@ -137,12 +137,33 @@ committing to full cross-validation.
 
 ### 4.3 Feature Selection
 
-Random Forest feature importance is used to rank the 118 features. The model is
-then re-evaluated with the top 10, top 20, and top 40 features to assess whether
-a smaller feature set improves generalisation.
+Random Forest feature importance is used to rank the 116 features. Performance
+is then evaluated with the top 10, top 20, and top 40 features across 5-fold
+cross-validation to identify the optimal feature subset.
 
-Feature importance is computed on the training portion only within each fold to
-avoid information leakage.
+Feature importance is averaged across all CV folds (computed on the training
+portion only within each fold) to produce a stable ranking and avoid information
+leakage.
+
+Cross-validated results show that **Top 40 features yield the best mean Macro F1
+(0.879) and the lowest variance (±0.029)** among all evaluated subsets. Top 10
+and Top 20 achieve similar mean performance (0.875) but with higher variance.
+Top 40 features are therefore used for all hypothesis analyses (H1–H3).
+
+The 10 most important features by CV-averaged RF importance:
+
+```
+L_AZ_mean               (vertical acceleration, left wrist)
+AY_std_absdiff          (lateral acceleration variability asymmetry)
+L_AX_mean               (forward/back acceleration, left wrist)
+GY_std_absdiff          (gyro Y variability asymmetry)
+gyro_jerk_mag_mean_absdiff
+L_AY_mean               (lateral acceleration, left wrist)
+R_AX_mean               (forward/back acceleration, right wrist)
+R_AZ_mean               (vertical acceleration, right wrist)
+R_AY_mean               (lateral acceleration, right wrist)
+gyro_mag_mean_absdiff
+```
 
 ---
 
@@ -176,7 +197,9 @@ Random Forest with varying feature set sizes, grouped 5-fold CV:
 
 Feature selection provides a modest but consistent improvement. Top 10 through
 Top 40 perform similarly, suggesting the most discriminative information is
-concentrated in a small subset of features. The Top 40 set minimises variance.
+concentrated in a small subset of features. **Top 40 is selected as the final
+configuration** for all hypothesis analyses, as it achieves the best mean Macro
+F1 (0.879) with the lowest variance (±0.029).
 
 On the single 80/20 split, Top 10 features yield the highest single-split score
 (Macro F1 0.918), though single-split results are more sensitive to the
@@ -184,12 +207,13 @@ particular experiments selected for testing.
 
 ### 5.3 Hypothesis 1 — IMU Signals Are Sufficient
 
-The cross-validation result directly answers the first hypothesis:
+The cross-validation result with the selected Top 40 feature set directly answers
+the first hypothesis:
 
 ```
-Random Forest, all features
-Macro F1 mean = 0.868  (±0.031)
-Accuracy mean = 0.869  (±0.032)
+Random Forest, Top 40 features
+Macro F1 mean = 0.879  (±0.029)
+Accuracy mean = 0.880  (±0.028)
 ```
 
 **Hypothesis 1 confirmed.** Wrist IMU signals alone — without any metadata about
@@ -198,37 +222,37 @@ reliable generalisation across subjects and conditions.
 
 ### 5.4 Hypothesis 2 — Phase-Specific Performance
 
-Separate Random Forest models (Top 10 features, 5-fold CV) trained and evaluated
+Separate Random Forest models (Top 40 features, 5-fold CV) trained and evaluated
 for each phase independently:
 
 | Phase | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| **Laufen** | **0.944** | **0.076** | **0.943** | **0.077** |
-| Aufheben | 0.872 | 0.131 | 0.869 | 0.136 |
-| Absetzen | 0.863 | 0.062 | 0.862 | 0.062 |
+| **Laufen** | **0.940** | **0.078** | **0.940** | **0.078** |
+| Aufheben | 0.890 | 0.077 | 0.887 | 0.083 |
+| Absetzen | 0.883 | 0.065 | 0.882 | 0.065 |
 
-**Hypothesis 2 confirmed.** The walking phase achieves Macro F1 0.943, substantially
-above pick-up (0.869) and put-down (0.862). This is consistent with the
-biomechanical expectation: during walking, the unloaded arm swings freely while
-the loaded arm is held more statically, producing a large and consistent
-left-right asymmetry signal.
+**Hypothesis 2 confirmed.** The walking phase achieves Macro F1 0.940, above
+pick-up (0.887) and put-down (0.882). This is consistent with the biomechanical
+expectation: during walking, the unloaded arm swings freely while the loaded arm
+is held more statically, producing a large and consistent left-right asymmetry
+signal.
 
-The higher variance for Aufheben (std 0.131 vs. 0.062 for Absetzen) suggests
+The higher variance for Aufheben (std 0.083 vs. 0.065 for Absetzen) suggests
 that the pick-up motion is more variable across trials, which may reflect
 differences in starting position and individual technique.
 
 ### 5.5 Hypothesis 3 — Box-Size Effect
 
-Separate Random Forest models (Top 10 features, 5-fold CV) trained and evaluated
+Separate Random Forest models (Top 40 features, 5-fold CV) trained and evaluated
 per box size:
 
 | Box size | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| **big** | **0.967** | **0.037** | **0.965** | **0.039** |
-| small | 0.771 | 0.071 | 0.763 | 0.076 |
+| **big** | **0.970** | **0.029** | **0.967** | **0.033** |
+| small | 0.769 | 0.071 | 0.763 | 0.075 |
 
 **Hypothesis 3 confirmed.** Classification performance is substantially higher for
-the big box (Macro F1 0.965) than for the small box (0.763). This supports the
+the big box (Macro F1 0.967) than for the small box (0.763). This supports the
 interpretation that a larger, heavier object forces more pronounced postural and
 movement differences between one-handed and two-handed carrying, making the
 asymmetry signal more detectable. For the small box, one-handed and two-handed
@@ -282,7 +306,7 @@ that one-handed carrying creates detectable left-right differences in wrist moti
 
 ### Interpretation of Box-Size Result
 
-The large performance gap between big and small box (Macro F1 0.965 vs. 0.763)
+The large performance gap between big and small box (Macro F1 0.967 vs. 0.763)
 raises the question of whether a single model trained across both sizes would
 retain discriminative power. A combined model would face mixed signal quality
 and would need to generalise across conditions where the asymmetry signal is
@@ -294,9 +318,9 @@ strong (big box) and weak (small box).
 
 All three project hypotheses are confirmed by the cross-validation results:
 
-1. Wrist IMU features alone classify carrying posture at Macro F1 0.868.
-2. The walking phase is the most informative (Macro F1 0.943).
-3. Larger objects produce stronger classification signal (Macro F1 0.965 vs. 0.763).
+1. Wrist IMU features alone classify carrying posture at Macro F1 0.879 (Top 40 features).
+2. The walking phase is the most informative (Macro F1 0.940).
+3. Larger objects produce stronger classification signal (Macro F1 0.967 vs. 0.763).
 
 The Random Forest classifier with feature selection is the recommended choice.
 The most important features combine absolute wrist kinematics with left-right

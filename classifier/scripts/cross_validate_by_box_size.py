@@ -20,7 +20,7 @@ RESULTS_DIR = CLASSIFIER_ROOT / "results"
 BOX_SIZE_CV_RESULTS_CSV = RESULTS_DIR / "random_forest_top10_by_box_size_cross_validation_results.csv"
 
 BOX_SIZES = ["big", "small"]
-TOP_K = 10
+TOP_K = 40
 
 
 def evaluate_fold(box_size: str, fold: int, train_df: pd.DataFrame, test_df: pd.DataFrame) -> dict:

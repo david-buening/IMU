@@ -20,7 +20,7 @@ RESULTS_DIR = CLASSIFIER_ROOT / "results"
 PHASE_CV_RESULTS_CSV = RESULTS_DIR / "random_forest_top10_by_phase_cross_validation_results.csv"
 
 PHASES = ["Aufheben", "Laufen", "Absetzen"]
-TOP_K = 10
+TOP_K = 40
 
 
 def evaluate_fold(phase: str, fold: int, train_df: pd.DataFrame, test_df: pd.DataFrame) -> dict:

@@ -426,7 +426,22 @@ Random Forest feature-selection cross-validation (sensor-only features):
 | Top 10 RF features | 0.876 | 0.046 | 0.875 | 0.046 |
 | All features | 0.869 | 0.032 | 0.868 | 0.031 |
 
-In cross-validation, Top 40 features perform best. Top 10 and Top 20 are essentially equivalent. Feature selection helps, but the size of the effect should be interpreted carefully given the small dataset.
+In cross-validation, Top 40 features perform best with the lowest variance. Top 10 and Top 20 are essentially equivalent in mean performance but show higher variance. **Top 40 is therefore selected as the final feature set for all hypothesis analyses.**
+
+The 10 most important features by CV-averaged RF importance:
+
+```text
+L_AZ_mean               (vertical acceleration, left wrist)
+AY_std_absdiff          (lateral acceleration variability asymmetry)
+L_AX_mean               (forward/back acceleration, left wrist)
+GY_std_absdiff          (gyro Y variability asymmetry)
+gyro_jerk_mag_mean_absdiff
+L_AY_mean               (lateral acceleration, left wrist)
+R_AX_mean               (forward/back acceleration, right wrist)
+R_AZ_mean               (vertical acceleration, right wrist)
+R_AY_mean               (lateral acceleration, right wrist)
+gyro_mag_mean_absdiff
+```
 
 ## Phase-Specific Classification
 
@@ -438,16 +453,16 @@ Setup:
 - one model for `Laufen`
 - one model for `Absetzen`
 - Random Forest classifier
-- Top 10 feature selection inside each training fold
+- Top 40 feature selection inside each training fold
 - grouped 5-fold cross-validation by `experiment_id`
 
 Results (sensor-only features):
 
 | Phase | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| Laufen | 0.944 | 0.076 | 0.943 | 0.077 |
-| Aufheben | 0.872 | 0.131 | 0.869 | 0.136 |
-| Absetzen | 0.863 | 0.062 | 0.862 | 0.062 |
+| Laufen | 0.940 | 0.078 | 0.940 | 0.078 |
+| Aufheben | 0.890 | 0.077 | 0.887 | 0.083 |
+| Absetzen | 0.883 | 0.065 | 0.882 | 0.065 |
 
 Main finding:
 
@@ -475,15 +490,15 @@ Setup:
 - one model for `small`
 - all phases included
 - Random Forest classifier
-- Top 10 feature selection inside each training fold
+- Top 40 feature selection inside each training fold
 - grouped 5-fold cross-validation by `experiment_id`
 
 Results (sensor-only features):
 
 | Box size | Accuracy mean | Accuracy std | Macro F1 mean | Macro F1 std |
 |---|---:|---:|---:|---:|
-| big | 0.967 | 0.037 | 0.965 | 0.039 |
-| small | 0.771 | 0.071 | 0.763 | 0.076 |
+| big | 0.970 | 0.029 | 0.967 | 0.033 |
+| small | 0.769 | 0.071 | 0.763 | 0.075 |
 
 Main finding:
 
@@ -499,7 +514,7 @@ The current best-supported modeling choice is:
 
 ```text
 Classifier: Random Forest
-Feature set: Top 40 Random-Forest-importance features (best in CV); Top 10 best in single 80/20 split
+Feature set: Top 40 Random-Forest-importance features (best Macro F1 0.879 in CV, lowest variance)
 Evaluation: grouped cross-validation by experiment_id
 Best phase: Laufen
 Best box-size condition: big

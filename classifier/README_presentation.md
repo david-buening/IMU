@@ -71,11 +71,11 @@ Grouped 5-fold cross-validation, all 4 classifiers:
 
 > One-handed vs. two-handed carrying can be classified from wrist IMU data alone.
 
-Random Forest cross-validation result:
+Random Forest cross-validation result (Top 40 features, selected based on CV):
 
 ```
-Macro F1 = 0.868  (±0.031)
-Accuracy = 0.869  (±0.032)
+Macro F1 = 0.879  (±0.029)
+Accuracy = 0.880  (±0.028)
 ```
 
 **Confirmed.** The model generalises across subjects, box sizes, and surfaces
@@ -87,13 +87,13 @@ using only raw sensor-derived features.
 
 > The walking phase (Laufen) produces clearer asymmetry than pick-up or put-down.
 
-Phase-specific Random Forest (Top 10 features, 5-fold CV):
+Phase-specific Random Forest (Top 40 features, 5-fold CV):
 
 | Phase | Macro F1 (mean) |
 |---|---:|
-| **Laufen** | **0.943** |
-| Aufheben | 0.869 |
-| Absetzen | 0.862 |
+| **Laufen** | **0.940** |
+| Aufheben | 0.887 |
+| Absetzen | 0.882 |
 
 **Confirmed.** During walking, the free arm swings naturally while the loaded arm
 stays stabilised — creating a stronger and more consistent asymmetry signal.
@@ -104,11 +104,11 @@ stays stabilised — creating a stronger and more consistent asymmetry signal.
 
 > Object size influences classification difficulty.
 
-Box-size-specific Random Forest (Top 10 features, 5-fold CV):
+Box-size-specific Random Forest (Top 40 features, 5-fold CV):
 
 | Box size | Macro F1 (mean) |
 |---|---:|
-| **big** | **0.965** |
+| **big** | **0.967** |
 | small | 0.763 |
 
 **Confirmed.** A larger object forces more pronounced posture differences between
@@ -140,8 +140,8 @@ Pattern: the model relies on **absolute wrist orientation/movement** and
 
 ## Slide: Takeaways
 
-1. **IMU-based classification works** — Macro F1 ~0.87 from sensor signals alone
-2. **Walking phase is most informative** — F1 0.94 vs. ~0.86 for other phases
+1. **IMU-based classification works** — Macro F1 ~0.88 from sensor signals alone (Top 40 features)
+2. **Walking phase is most informative** — F1 0.94 vs. ~0.88 for other phases
 3. **Box size matters** — big box F1 0.97 vs. small box F1 0.76
 4. **Asymmetry features are key** — SHAP confirms left-right differences drive predictions
 5. **Next step** would be a real-time deployment model trained on all data
